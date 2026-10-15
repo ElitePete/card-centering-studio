@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QStandardPaths, Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -28,6 +29,7 @@ from PySide6.QtWidgets import (
 from .database import MeasurementDatabase
 from .measurement import InvalidGuidesError
 from .models import MeasurementRecord
+from .report_export import ReportSide, export_comparison_report
 from .side_editor import SideEditor
 
 
@@ -97,6 +99,8 @@ class MainWindow(QMainWindow):
         self.save_button = QPushButton("Save measurement")
         self.save_button.setObjectName("primaryButton")
         self.save_button.clicked.connect(self.save_measurement)
+        self.export_button = QPushButton("Export report…")
+        self.export_button.clicked.connect(self.export_report)
 
         layout.addWidget(title, 0, 0, 1, 2)
         layout.addWidget(subtitle, 1, 0, 1, 2)
@@ -104,7 +108,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.card_name, 1, 2, 1, 3)
         layout.addWidget(front_button, 0, 5, 2, 1)
         layout.addWidget(back_button, 0, 6, 2, 1)
-        layout.addWidget(self.save_button, 0, 7, 2, 1)
+        layout.addWidget(self.export_button, 0, 7, 2, 1)
+        layout.addWidget(self.save_button, 0, 8, 2, 1)
         layout.setColumnStretch(2, 1)
         return frame
 
@@ -149,6 +154,11 @@ class MainWindow(QMainWindow):
         save_action.triggered.connect(self.save_measurement)
         self.addAction(save_action)
 
+        export_action = QAction("Export comparison report", self)
+        export_action.setShortcut(QKeySequence("Ctrl+E"))
+        export_action.triggered.connect(self.export_report)
+        self.addAction(export_action)
+
         fit_action = QAction("Fit image", self)
         fit_action.setShortcut(QKeySequence("F"))
         fit_action.triggered.connect(self._fit_current)
@@ -173,6 +183,75 @@ class MainWindow(QMainWindow):
             self.front_editor.loaded and self.back_editor.loaded
         )
         self.save_button.setEnabled(ready)
+        self.export_button.setEnabled(ready)
+
+    def export_report(self) -> None:
+        card_name = self.card_name.text().strip()
+        if not card_name:
+            QMessageBox.information(
+                self, "Card ID required", "Enter a card ID or name before exporting."
+            )
+            self.card_name.setFocus()
+            return
+        if self.front_editor.loaded is None or self.back_editor.loaded is None:
+            QMessageBox.information(
+                self,
+                "Both scans required",
+                "Import both a front scan and a back scan before exporting.",
+            )
+            return
+
+        try:
+            front_measurement = self.front_editor.measurement()
+            back_measurement = self.back_editor.measurement()
+        except (InvalidGuidesError, RuntimeError) as exc:
+            QMessageBox.warning(self, "Cannot export report", str(exc))
+            return
+
+        safe_name = re.sub(r"[^A-Za-z0-9._ -]+", "", card_name).strip(" .")
+        safe_name = safe_name or "card"
+        documents = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.DocumentsLocation
+        )
+        suggested = str(Path(documents) / f"{safe_name} centering report.png")
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export front and back comparison report",
+            suggested,
+            "PNG image (*.png)",
+        )
+        if not path:
+            return
+
+        try:
+            destination = export_comparison_report(
+                path,
+                card_name,
+                ReportSide(
+                    "Front",
+                    self.front_editor.loaded,
+                    self.front_editor.guides(),
+                    front_measurement,
+                    self.front_editor.rotation_degrees,
+                ),
+                ReportSide(
+                    "Back",
+                    self.back_editor.loaded,
+                    self.back_editor.guides(),
+                    back_measurement,
+                    self.back_editor.rotation_degrees,
+                ),
+            )
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, "Could not export report", str(exc))
+            return
+
+        self.statusBar().showMessage(f"Exported report to {destination}", 9000)
+        QMessageBox.information(
+            self,
+            "Report exported",
+            f"The front/back comparison report was saved to:\n{destination}",
+        )
 
     def save_measurement(self) -> None:
         card_name = self.card_name.text().strip()

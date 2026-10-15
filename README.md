@@ -20,6 +20,7 @@ Built with Python, PySide6, OpenCV, Pillow, and SQLite.
 - Reads scanner DPI metadata when present and displays optional millimetre equivalents. DPI never affects the centering ratio.
 - Saves independent front L/R, front T/B, back L/R, and back T/B results to SQLite.
 - Keeps a history table so multiple physical copies can be compared.
+- Exports a high-resolution PNG report with the annotated front and back side by side, plus ratios, pixel distances, optional millimetres, and the plain-English assessment.
 
 ## Install and run on Windows
 
@@ -55,6 +56,7 @@ python run_app.py
    - Shift+Arrow: 0.1 px
    - Ctrl+Arrow: 10 px
 7. Review the four ratios and save the measurement.
+8. Choose **Export report…** (or press **Ctrl+E**) to create a shareable front/back comparison image.
 
 Changing the rotation preserves the current zoom, viewing position, and guide placement by mapping them into the newly rotated canvas. Because the lines remain axis-aligned, give them a quick visual fine-tune after a meaningful angle change. Point-selection mode shows a magenta instruction banner, a crosshair cursor, and a visible marker after the first click. Use **Fit card** after roughly positioning the cyan guides for a crop-like close view; this changes only the view and never removes image data.
 
@@ -71,6 +73,10 @@ The color bands are descriptive geometry aids only:
 - Over 65.0: Heavy offset
 
 They are not grading predictions and do not reproduce any grading company's standards.
+
+### Exported report
+
+The PNG report uses the straightened working images rather than screenshots, so viewer zoom and window size do not affect its quality. Each face is cropped loosely around the cyan physical-card guides and includes the cyan outer-edge lines, amber dashed print-edge lines, horizontal and vertical ratios, raw pixel distances, optional DPI-based millimetres, straightening correction, and descriptive severity. Exporting does not create a database record; use **Save measurement** separately when you want the result in history.
 
 For the most repeatable results, scan copies with the same scanner settings and orientation, zoom in deeply for placement, and use a consistent visual rule for anti-aliased or soft edges.
 
@@ -109,13 +115,14 @@ python run_app.py --front front.png --back back.png
 - `card_centering/viewer.py` — zoom/pan graphics view and constrained guides.
 - `card_centering/side_editor.py` — one front/back measurement workspace.
 - `card_centering/database.py` — explicit SQLite fields for each face and axis.
+- `card_centering/report_export.py` — high-resolution annotated front/back PNG composition.
 - `card_centering/main_window.py` — application workflow and saved-copy comparison.
 
 No automatic detector is implemented in V1. A future OpenCV detector can implement `CardEdgeDetector.detect()` and return the same `GuidePositions` model used by the manual UI.
 
 ## Project scope
 
-The current release prioritizes transparent, repeatable measurement over automated interpretation. Planned extensions can include optional OpenCV-assisted edge proposals, reusable guide presets, and data export, while keeping manual verification and pixel-based calculations as the source of truth.
+The current release prioritizes transparent, repeatable measurement over automated interpretation. Planned extensions can include optional OpenCV-assisted edge proposals, reusable guide presets, and structured CSV/JSON export, while keeping manual verification and pixel-based calculations as the source of truth.
 
 Contributions and well-described bug reports are welcome. Please avoid attaching copyrighted card scans or personal SQLite databases to public issues unless you have checked what they contain.
 

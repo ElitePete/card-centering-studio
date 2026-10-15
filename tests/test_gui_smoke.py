@@ -56,6 +56,7 @@ class GuiSmokeTests(unittest.TestCase):
             self.assertGreater(front_viewer.guides().outer_left, 40)
             self.assertTrue(front_viewer._straighten_badge.isHidden())
             self.assertTrue(window.save_button.isEnabled())
+            self.assertTrue(window.export_button.isEnabled())
             window.save_measurement()
             rows = list(window.database.recent())
             window.close()

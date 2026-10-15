@@ -286,7 +286,8 @@ class SideEditor(QWidget):
         self._display_loaded(loaded)
         self._set_controls_enabled(True)
         self.rotation_status.setText(
-            "Correction: 0.00°. Straighten before final guide placement; changing rotation resets guides."
+            "Correction: 0.00°. You can straighten before or after guide placement; the app "
+            "preserves the guides and current view."
         )
         self.imageLoaded.emit()
         return True
