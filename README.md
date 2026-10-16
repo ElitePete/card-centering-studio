@@ -1,3 +1,9 @@
+# Dont want to read any of this? Watch the video instead:
+
+## [https://youtu.be/iBHTiHVNeNI](https://youtu.be/iBHTiHVNeNI)
+
+---
+
 # Card Centering Studio
 
 A Windows desktop tool for repeatable, manual centering measurements from flatbed-scanner images. Version 1 deliberately measures geometry only; it does not predict grades or make grading-company claims.
