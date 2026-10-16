@@ -81,7 +81,8 @@ CREATE TABLE IF NOT EXISTS measurements (
     back_tb_top_percent REAL NOT NULL,
     back_tb_bottom_percent REAL NOT NULL,
     back_top_mm REAL,
-    back_bottom_mm REAL
+    back_bottom_mm REAL,
+    report_png BLOB
 );
 CREATE INDEX IF NOT EXISTS idx_measurements_card_name
 ON measurements(card_name COLLATE NOCASE);
@@ -112,12 +113,19 @@ class MeasurementDatabase:
                         f"ALTER TABLE measurements ADD COLUMN {column} "
                         "REAL NOT NULL DEFAULT 0"
                     )
+            if "report_png" not in existing:
+                connection.execute(
+                    "ALTER TABLE measurements ADD COLUMN report_png BLOB"
+                )
             connection.commit()
 
-    def save(self, record: MeasurementRecord) -> int:
+    def save(self, record: MeasurementRecord, report_png: bytes | None = None) -> int:
         values = record.flat_values()
-        columns = ", ".join(MEASUREMENT_COLUMNS)
-        placeholders = ", ".join(f":{name}" for name in MEASUREMENT_COLUMNS)
+        values["report_png"] = sqlite3.Binary(report_png) if report_png else None
+        columns = ", ".join((*MEASUREMENT_COLUMNS, "report_png"))
+        placeholders = ", ".join(
+            f":{name}" for name in (*MEASUREMENT_COLUMNS, "report_png")
+        )
         with closing(self._connect()) as connection:
             with connection:
                 cursor = connection.execute(
@@ -126,18 +134,52 @@ class MeasurementDatabase:
                 return int(cursor.lastrowid)
 
     def recent(self, limit: int = 100, card_filter: str = "") -> Iterable[sqlite3.Row]:
+        selected = ", ".join(("id", "created_at", *MEASUREMENT_COLUMNS))
+        selected += ", CASE WHEN report_png IS NULL THEN 0 ELSE 1 END AS has_report"
         with closing(self._connect()) as connection:
             if card_filter.strip():
                 query = (
-                    "SELECT * FROM measurements WHERE card_name LIKE ? ESCAPE '\\' "
+                    f"SELECT {selected} FROM measurements WHERE card_name LIKE ? ESCAPE '\\' "
                     "COLLATE NOCASE ORDER BY id DESC LIMIT ?"
                 )
                 escaped = card_filter.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
                 parameters = (f"%{escaped}%", limit)
             else:
-                query = "SELECT * FROM measurements ORDER BY id DESC LIMIT ?"
+                query = f"SELECT {selected} FROM measurements ORDER BY id DESC LIMIT ?"
                 parameters = (limit,)
-            return list(
-                connection.execute(query, parameters)
-            )
+            return list(connection.execute(query, parameters))
+
+    def report_png(self, record_id: int) -> bytes | None:
+        with closing(self._connect()) as connection:
+            row = connection.execute(
+                "SELECT report_png FROM measurements WHERE id = ?", (record_id,)
+            ).fetchone()
+            if row is None or row["report_png"] is None:
+                return None
+            return bytes(row["report_png"])
+
+    def rename(
+        self, record_id: int, card_name: str, report_png: bytes | None = None
+    ) -> bool:
+        with closing(self._connect()) as connection:
+            with connection:
+                if report_png is None:
+                    cursor = connection.execute(
+                        "UPDATE measurements SET card_name = ? WHERE id = ?",
+                        (card_name, record_id),
+                    )
+                else:
+                    cursor = connection.execute(
+                        "UPDATE measurements SET card_name = ?, report_png = ? WHERE id = ?",
+                        (card_name, sqlite3.Binary(report_png), record_id),
+                    )
+                return cursor.rowcount > 0
+
+    def delete(self, record_id: int) -> bool:
+        with closing(self._connect()) as connection:
+            with connection:
+                cursor = connection.execute(
+                    "DELETE FROM measurements WHERE id = ?", (record_id,)
+                )
+                return cursor.rowcount > 0
 

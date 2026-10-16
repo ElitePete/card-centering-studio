@@ -292,6 +292,35 @@ class SideEditor(QWidget):
         self.imageLoaded.emit()
         return True
 
+    def clear_image(self) -> None:
+        self.original_loaded = None
+        self.loaded = None
+        self.rotation_degrees = 0.0
+        blocker = QSignalBlocker(self.rotation_spin)
+        self.rotation_spin.setValue(0.0)
+        del blocker
+        self.viewer.clear_image()
+        for spin in self.spinboxes.values():
+            blocker = QSignalBlocker(spin)
+            spin.setValue(0.0)
+            del blocker
+        self.file_label.setText("No image loaded")
+        self.file_label.setToolTip("")
+        self.rotation_status.setText("Load a scan to straighten it.")
+        self.dpi_label.setText("DPI: —")
+        self.overall_assessment.setText("Assessment appears after loading")
+        self.overall_assessment.setStyleSheet("")
+        self.lr_ratio.setText("—")
+        self.tb_ratio.setText("—")
+        self.lr_assessment.setText("—")
+        self.tb_assessment.setText("—")
+        self.lr_assessment.setStyleSheet("")
+        self.tb_assessment.setStyleSheet("")
+        self.lr_detail.setText("Left/right measurements appear here")
+        self.tb_detail.setText("Top/bottom measurements appear here")
+        self._set_controls_enabled(False)
+        self.imageLoaded.emit()
+
     def _display_loaded(
         self,
         loaded: LoadedImage,

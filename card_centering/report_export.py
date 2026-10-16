@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from io import BytesIO
 import math
 from pathlib import Path
 
@@ -219,17 +220,12 @@ def _render_panel(side: ReportSide) -> Image.Image:
     return panel
 
 
-def export_comparison_report(
-    path: str | Path,
+def render_comparison_report(
     card_name: str,
     front: ReportSide,
     back: ReportSide,
-) -> Path:
-    """Export a high-resolution PNG with both annotated faces and measurements."""
-    destination = Path(path)
-    if destination.suffix.lower() != ".png":
-        destination = destination.with_suffix(".png")
-
+) -> Image.Image:
+    """Render both annotated faces and their measurements into one report image."""
     front_panel = _render_panel(front)
     back_panel = _render_panel(back)
     margin = 54
@@ -268,6 +264,43 @@ def export_comparison_report(
         fill=MUTED,
     )
 
+    return page
+
+
+def comparison_report_png_bytes(
+    card_name: str,
+    front: ReportSide,
+    back: ReportSide,
+) -> bytes:
+    output = BytesIO()
+    render_comparison_report(card_name, front, back).save(
+        output, format="PNG", dpi=(150, 150), optimize=True
+    )
+    return output.getvalue()
+
+
+def retitle_report_png(report_png: bytes, card_name: str) -> bytes:
+    """Update the title embedded in a stored report after a history rename."""
+    with Image.open(BytesIO(report_png)) as opened:
+        page = opened.convert("RGB")
+    draw = ImageDraw.Draw(page)
+    draw.rectangle((0, 0, page.width, 96), fill=PAGE_BACKGROUND)
+    draw.text((54, 34), card_name, font=_font(46, bold=True), fill=INK)
+    output = BytesIO()
+    page.save(output, format="PNG", dpi=(150, 150), optimize=True)
+    return output.getvalue()
+
+
+def export_comparison_report(
+    path: str | Path,
+    card_name: str,
+    front: ReportSide,
+    back: ReportSide,
+) -> Path:
+    """Export a high-resolution PNG with both annotated faces and measurements."""
+    destination = Path(path)
+    if destination.suffix.lower() != ".png":
+        destination = destination.with_suffix(".png")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    page.save(destination, format="PNG", dpi=(150, 150), optimize=True)
+    destination.write_bytes(comparison_report_png_bytes(card_name, front, back))
     return destination.resolve()

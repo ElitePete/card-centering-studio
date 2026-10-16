@@ -165,6 +165,16 @@ class ImageViewer(QGraphicsView):
             self.fit_image()
         self.guidesChanged.emit()
 
+    def clear_image(self) -> None:
+        self.cancel_straighten_selection()
+        self._scene.clear()
+        self._guide_items.clear()
+        self._pixmap_item = None
+        self._width = 0
+        self._height = 0
+        self._zoom_steps = 0
+        self.resetTransform()
+
     def fit_image(self) -> None:
         if not self.has_image:
             return
@@ -259,6 +269,8 @@ class ImageViewer(QGraphicsView):
             )
             self._straighten_badge.adjustSize()
             self._position_straighten_badge()
+            self.setCursor(Qt.CursorShape.CrossCursor)
+            self.viewport().setCursor(Qt.CursorShape.CrossCursor)
         self.straightenPointCountChanged.emit(len(self._straighten_points))
         if len(self._straighten_points) == 2:
             first, second = self._straighten_points
@@ -278,6 +290,14 @@ class ImageViewer(QGraphicsView):
             event.accept()
             return
         super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: N802 - Qt API
+        if self._straighten_mode and event.button() == Qt.MouseButton.LeftButton:
+            self.setCursor(Qt.CursorShape.CrossCursor)
+            self.viewport().setCursor(Qt.CursorShape.CrossCursor)
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802 - Qt API
         if self._straighten_mode and event.key() == Qt.Key.Key_Escape:

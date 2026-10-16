@@ -28,10 +28,16 @@ class DatabaseTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             database = MeasurementDatabase(Path(directory) / "measurements.sqlite3")
-            record_id = database.save(record)
+            record_id = database.save(record, report_png=b"stored report")
             rows = list(database.recent())
             matching_rows = list(database.recent(card_filter="Copy 2"))
             nonmatching_rows = list(database.recent(card_filter="Different card"))
+            stored_report = database.report_png(record_id)
+            renamed = database.rename(record_id, "Renamed copy", b"retitled report")
+            renamed_rows = list(database.recent())
+            renamed_report = database.report_png(record_id)
+            deleted = database.delete(record_id)
+            remaining_rows = list(database.recent())
 
         self.assertEqual(record_id, 1)
         self.assertEqual(len(rows), 1)
@@ -43,12 +49,22 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(rows[0]["back_left_px"], 51)
         self.assertEqual(rows[0]["back_top_px"], 98)
         self.assertIsNone(rows[0]["back_left_mm"])
+        self.assertEqual(rows[0]["has_report"], 1)
+        self.assertEqual(stored_report, b"stored report")
+        self.assertTrue(renamed)
+        self.assertEqual(renamed_rows[0]["card_name"], "Renamed copy")
+        self.assertEqual(renamed_report, b"retitled report")
+        self.assertTrue(deleted)
+        self.assertEqual(remaining_rows, [])
 
     def test_adds_rotation_columns_to_existing_v1_database(self):
         old_schema = SCHEMA.replace(
             "    front_rotation_degrees REAL NOT NULL DEFAULT 0,\n"
             "    back_rotation_degrees REAL NOT NULL DEFAULT 0,\n",
             "",
+        ).replace(
+            "    back_bottom_mm REAL,\n    report_png BLOB\n",
+            "    back_bottom_mm REAL\n",
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "existing.sqlite3"
@@ -63,6 +79,7 @@ class DatabaseTests(unittest.TestCase):
 
         self.assertIn("front_rotation_degrees", columns)
         self.assertIn("back_rotation_degrees", columns)
+        self.assertIn("report_png", columns)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from io import BytesIO
 from pathlib import Path
 
 import numpy as np
@@ -8,7 +9,12 @@ from PIL import Image
 from card_centering.image_processing import LoadedImage
 from card_centering.measurement import calculate_measurement
 from card_centering.models import GuidePositions, ImageMetadata
-from card_centering.report_export import ReportSide, export_comparison_report
+from card_centering.report_export import (
+    ReportSide,
+    comparison_report_png_bytes,
+    export_comparison_report,
+    retitle_report_png,
+)
 
 
 class ReportExportTests(unittest.TestCase):
@@ -62,6 +68,18 @@ class ReportExportTests(unittest.TestCase):
 
             self.assertTrue(np.any(np.all(pixels == (21, 209, 197), axis=2)))
             self.assertTrue(np.any(np.all(pixels == (255, 159, 26), axis=2)))
+
+    def test_report_can_be_stored_and_retitled_as_png_bytes(self):
+        front = self._side("Front", (240, 230, 220, 255))
+        back = self._side("Back", (210, 220, 235, 255))
+        original = comparison_report_png_bytes("Typo Card", front, back)
+        retitled = retitle_report_png(original, "Corrected Card")
+
+        self.assertTrue(original.startswith(b"\x89PNG"))
+        self.assertTrue(retitled.startswith(b"\x89PNG"))
+        with Image.open(BytesIO(retitled)) as image:
+            self.assertEqual(image.format, "PNG")
+            self.assertGreater(image.width, 2000)
 
 
 if __name__ == "__main__":
