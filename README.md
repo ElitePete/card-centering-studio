@@ -2,6 +2,21 @@
 
 ## [https://youtu.be/iBHTiHVNeNI](https://youtu.be/iBHTiHVNeNI)
 
+## Example centering reports
+
+Click either report to open the full-resolution image.
+
+<table>
+  <tr>
+    <th>Nicely centered — Morpeko</th>
+    <th>Clearly off-center — Pikachu</th>
+  </tr>
+  <tr>
+    <td><a href="docs/images/morpeko-centered-report.png"><img src="docs/images/morpeko-centered-report.png" alt="Morpeko centering report showing a nicely centered card" width="100%"></a></td>
+    <td><a href="docs/images/pikachu-off-center-report.png"><img src="docs/images/pikachu-off-center-report.png" alt="Pikachu centering report showing an off-center card" width="100%"></a></td>
+  </tr>
+</table>
+
 ---
 
 # Card Centering Studio
